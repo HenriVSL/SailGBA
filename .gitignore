@@ -1,0 +1,29 @@
+# Local test files (BIOS dump, ROMs) - never commit
+TestingFileNoGithub/
+*.gba
+*.gb
+*.gbc
+*.sav
+gba_bios.bin
+bios/
+
+# qmake / sfdk build output
+build-*/
+*.pro.user
+*.pro.user.*
+.sfdk/
+Makefile
+*.o
+moc_*
+qrc_*
+*.qm
+/harbour-sailgba
+RPMS/
+*.rpm
+.qmake.stash
+documentation.list
+installroot/
+
+# local screenshots
+shots/
+.claude/

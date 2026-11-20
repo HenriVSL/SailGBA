@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#6a4fd0"/>
+      <stop offset="1" stop-color="#2a1668"/>
+    </linearGradient>
+    <linearGradient id="scr" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ff0e4"/>
+      <stop offset="1" stop-color="#1fb5c9"/>
+    </linearGradient>
+    <clipPath id="sc"><rect x="88" y="101" width="80" height="54" rx="6"/></clipPath>
+  </defs>
+  <circle cx="128" cy="128" r="124" fill="url(#bg)"/>
+  <!-- console body -->
+  <rect x="34" y="78" width="188" height="100" rx="30" fill="#efeaff"/>
+  <!-- screen bezel + screen -->
+  <rect x="81" y="93" width="94" height="68" rx="10" fill="#2a1668"/>
+  <rect x="88" y="101" width="80" height="54" rx="6" fill="url(#scr)"/>
+  <g clip-path="url(#sc)">
+    <path d="M128 106 L128 138 L104 138 Z" fill="#ffffff"/>
+    <path d="M133 113 L133 138 L150 138 Z" fill="#e6fffd"/>
+    <path d="M88 143 Q98 135 108 143 T128 143 T148 143 T168 143 V155 H88 Z" fill="#2a1668"/>
+  </g>
+  <!-- d-pad -->
+  <path d="M52 112h14v10h10v14H66v10H52v-10H42v-14h10z" fill="#3b2a8a" transform="translate(0,2)"/>
+  <!-- A/B buttons -->
+  <circle cx="192" cy="141" r="9.5" fill="#3b2a8a"/>
+  <circle cx="209" cy="123" r="9.5" fill="#3b2a8a"/>
+</svg>

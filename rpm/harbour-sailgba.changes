@@ -1,0 +1,7 @@
+# Changelog for the rpm %changelog (sfdk/mb2 reads this file because it is named
+# harbour-sailgba.changes). Newest entry first, entries separated by a blank line.
+# Format: * <weekday> <month> <day> <year> <name> <<email>> <version>-<release>
+
+* Fri Nov 20 2026 Henri Lavikainen <henri.lavikainen@gmail.com> 0.1.0-1
+- First version: mGBA 0.10.5 core with a Silica interface, touch controls,
+  save states, fast forward, resume and a game library.

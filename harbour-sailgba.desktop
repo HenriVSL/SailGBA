@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=harbour-sailgba
+Exec=harbour-sailgba %f
+Name=SailGBA
+Comment=Game Boy Advance emulator
+MimeType=application/x-gba-rom;application/x-gameboy-rom;application/x-gameboy-color-rom;
+
+[X-Sailjail]
+OrganizationName=io.github.henrivsl
+ApplicationName=harbour-sailgba
+Permissions=Audio;UserDirs;RemovableMedia
