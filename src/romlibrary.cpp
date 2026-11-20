@@ -235,7 +235,7 @@ QVariant RomLibrary::data(const QModelIndex &index, int role) const
     case LastPlayedRole:
         return m_settings->lastPlayed(entry.path);
     case HasResumeRole:
-        return QFileInfo::exists(QDir(Settings::dataDir()).filePath(
+        return m_settings->autoSaveState() && QFileInfo::exists(QDir(Settings::dataDir()).filePath(
             QStringLiteral("states/") + Emulator::baseName(entry.path) + QStringLiteral(".ss0")));
     case FolderRole:
         return QFileInfo(entry.path).absolutePath();

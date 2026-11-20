@@ -18,6 +18,7 @@
 #include <mgba-util/vfs.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 namespace {
@@ -103,6 +104,13 @@ QImage FrameBuffer::snapshot() const
     return m_image.copy();
 }
 
+void FrameBuffer::clear()
+{
+    QMutexLocker lock(&m_mutex);
+    m_image = QImage();
+    ++m_serial;
+}
+
 QSize FrameBuffer::size() const
 {
     QMutexLocker lock(&m_mutex);
@@ -131,11 +139,16 @@ Emulator::Emulator(Settings *settings, QObject *parent)
     connect(this, &Emulator::workerStarted, this, &Emulator::onStarted, Qt::QueuedConnection);
     connect(this, &Emulator::workerFailed, this, &Emulator::onFailed, Qt::QueuedConnection);
     connect(this, &Emulator::workerFrame, this, &Emulator::onFrame, Qt::QueuedConnection);
-    connect(this, &Emulator::workerStateSaved, this, [this](int slot, bool ok) {
+    connect(this, &Emulator::workerStateSaved, this, [this](int generation, int slot, bool ok) {
+        if (generation != m_generation)
+            return;
         emit stateSaved(slot, ok);
         emit statesChanged();
     }, Qt::QueuedConnection);
-    connect(this, &Emulator::workerStateLoaded, this, &Emulator::stateLoaded, Qt::QueuedConnection);
+    connect(this, &Emulator::workerStateLoaded, this, [this](int generation, int slot, bool ok) {
+        if (generation == m_generation)
+            emit stateLoaded(slot, ok);
+    }, Qt::QueuedConnection);
 }
 
 Emulator::~Emulator()
@@ -171,6 +184,7 @@ void Emulator::start(const QString &path, bool resume)
     options.biosPath = m_settings->useBios() ? m_settings->biosPath() : QString();
     options.resume = resume && m_settings->autoSaveState();
     options.skipBios = m_settings->skipBiosIntro();
+    options.generation = ++m_generation;
 
     m_romPath = local;
     m_gameTitle = QFileInfo(local).completeBaseName();
@@ -182,6 +196,12 @@ void Emulator::start(const QString &path, bool resume)
     m_ffRequested = m_fastForward;
     m_keys = 0;
     m_framePending = false;
+    m_frame.clear();
+    {
+        // Commands queued for the previous game must not run on this one.
+        std::lock_guard<std::mutex> lock(m_commandMutex);
+        m_commands.clear();
+    }
     m_running = true;
     emit runningChanged();
     m_thread = std::thread(&Emulator::run, this, options);
@@ -256,14 +276,14 @@ void Emulator::reset()
 void Emulator::saveState(int slot)
 {
     post([this, slot] {
-        emit workerStateSaved(slot, saveStateNow(slot));
+        emit workerStateSaved(m_runGeneration, slot, saveStateNow(slot));
     });
 }
 
 void Emulator::loadState(int slot)
 {
     post([this, slot] {
-        emit workerStateLoaded(slot, loadStateNow(slot));
+        emit workerStateLoaded(m_runGeneration, slot, loadStateNow(slot));
     });
 }
 
@@ -324,8 +344,10 @@ void Emulator::deleteAutoSave(const QString &romPath)
     QFile::remove(path + QStringLiteral(".png"));
 }
 
-void Emulator::onStarted(const QString &title, const QString &platform)
+void Emulator::onStarted(int generation, const QString &title, const QString &platform)
 {
+    if (generation != m_generation)
+        return;
     if (!title.isEmpty())
         m_gameTitle = title;
     m_platform = platform;
@@ -338,8 +360,10 @@ void Emulator::onStarted(const QString &title, const QString &platform)
     emit started();
 }
 
-void Emulator::onFailed(const QString &message)
+void Emulator::onFailed(int generation, const QString &message)
 {
+    if (generation != m_generation || !m_running)
+        return;
     if (m_thread.joinable())
         m_thread.join();
     m_audio->stop();
@@ -348,9 +372,11 @@ void Emulator::onFailed(const QString &message)
     emit failed(message);
 }
 
-void Emulator::onFrame()
+void Emulator::onFrame(int generation)
 {
     m_framePending = false;
+    if (generation != m_generation)
+        return;
     const QSize size = m_frame.size();
     if (size != m_frameSize && !size.isEmpty()) {
         m_frameSize = size;
@@ -374,9 +400,10 @@ void Emulator::onFrame()
 
 void Emulator::run(StartOptions options)
 {
+    m_runGeneration = options.generation;
     QString error;
     if (!loadGame(options, &error)) {
-        emit workerFailed(error);
+        emit workerFailed(m_runGeneration, error);
         return;
     }
 
@@ -384,7 +411,7 @@ void Emulator::run(StartOptions options)
     m_core->getGameTitle(m_core, title);
     const QString platform = m_core->platform(m_core) == mPLATFORM_GBA ? QStringLiteral("GBA") : QStringLiteral("GB");
     const QString gameTitle = QString::fromLatin1(title).trimmed();
-    emit workerStarted(gameTitle, platform);
+    emit workerStarted(m_runGeneration, gameTitle, platform);
 
     runFrames();
     unloadGame(m_autoSave.load());
@@ -392,6 +419,7 @@ void Emulator::run(StartOptions options)
 
 bool Emulator::loadGame(const StartOptions &options, QString *error)
 {
+    m_framesRun = 0;
     const QByteArray path = QFile::encodeName(options.path);
     m_core = mCoreFind(path.constData());
     if (!m_core) {
@@ -399,6 +427,8 @@ bool Emulator::loadGame(const StartOptions &options, QString *error)
         return false;
     }
     if (!m_core->init(m_core)) {
+        // init() frees what it allocated; only the core struct itself is left.
+        free(m_core);
         m_core = nullptr;
         *error = tr("Could not start the emulator core");
         return false;
@@ -467,11 +497,18 @@ void Emulator::unloadGame(bool autoSave)
 {
     if (!m_core)
         return;
-    if (autoSave && m_core->frameCounter(m_core) > 0) {
+    // m_framesRun, not the core's frame counter: a resumed state restores that
+    // counter, and quitting before any frame ran would save a blank picture.
+    if (autoSave && m_framesRun > 0) {
         saveStateNow(AutoSaveSlot);
         const QImage frame = m_frame.snapshot();
         if (!frame.isNull())
             frame.save(thumbnailPath(m_romPath), "PNG");
+    } else if (!autoSave) {
+        // A resume state left from before the setting was turned off would
+        // otherwise come back, out of date, when it is turned on again.
+        QFile::remove(statePath(AutoSaveSlot));
+        QFile::remove(statePath(AutoSaveSlot) + QStringLiteral(".png"));
     }
     mCoreConfigDeinit(&m_core->config);
     m_core->deinit(m_core);
@@ -483,7 +520,10 @@ void Emulator::unloadGame(bool autoSave)
 
 bool Emulator::saveStateNow(int slot)
 {
-    const bool ok = mCoreSaveState(m_core, slot, SAVESTATE_SAVEDATA | SAVESTATE_RTC | SAVESTATE_METADATA);
+    // No SAVESTATE_SAVEDATA: mGBA would restore an embedded battery save as a
+    // write-back mask on load, so an old state could overwrite newer in-game
+    // saves. Battery saves live only in the .sav file.
+    const bool ok = mCoreSaveState(m_core, slot, SAVESTATE_RTC | SAVESTATE_METADATA);
     if (ok) {
         const QImage frame = m_frame.snapshot();
         if (!frame.isNull())
@@ -494,12 +534,9 @@ bool Emulator::saveStateNow(int slot)
 
 bool Emulator::loadStateNow(int slot)
 {
-    // SAVESTATE_SAVEDATA is left out on purpose: loading an old state must
-    // not roll back the in-game save file.
-    const bool ok = mCoreLoadState(m_core, slot, SAVESTATE_RTC);
-    if (ok)
-        publishFrame();
-    return ok;
+    // The video buffer is refreshed by the next frame that runs; states don't
+    // carry a screenshot (that needs libpng).
+    return mCoreLoadState(m_core, slot, SAVESTATE_RTC);
 }
 
 void Emulator::publishFrame()
@@ -508,7 +545,7 @@ void Emulator::publishFrame()
     m_core->desiredVideoDimensions(m_core, &width, &height);
     m_frame.publish(m_videoBuffer, int(width), int(height), MaxWidth);
     if (!m_framePending.exchange(true))
-        emit workerFrame();
+        emit workerFrame(m_runGeneration);
 }
 
 void Emulator::pumpAudio(bool play)
@@ -595,6 +632,7 @@ void Emulator::runFrames()
 
         m_core->setKeys(m_core, m_keys.load());
         m_core->runFrame(m_core);
+        ++m_framesRun;
         ++frameCounter;
         ++framesThisSecond;
 

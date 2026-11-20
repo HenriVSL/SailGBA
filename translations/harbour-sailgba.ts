@@ -42,26 +42,18 @@
 <context>
     <name>Emulator</name>
     <message>
-        <location filename="../src/emulator.cpp" line="398"/>
+        <location filename="../src/emulator.cpp" line="426"/>
         <source>Not a Game Boy or Game Boy Advance game</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/emulator.cpp" line="403"/>
+        <location filename="../src/emulator.cpp" line="433"/>
         <source>Could not start the emulator core</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/emulator.cpp" line="435"/>
+        <location filename="../src/emulator.cpp" line="465"/>
         <source>Could not read the game file</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>ErrorPage</name>
-    <message>
-        <location filename="../qml/pages/ErrorPage.qml" line="9"/>
-        <source>Could not start the game</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -156,6 +148,19 @@
     <message>
         <location filename="../qml/pages/GameMenuPage.qml" line="181"/>
         <source>Empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>GamePage</name>
+    <message>
+        <location filename="../qml/pages/GamePage.qml" line="124"/>
+        <source>Could not start the game</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/GamePage.qml" line="135"/>
+        <source>Back to library</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

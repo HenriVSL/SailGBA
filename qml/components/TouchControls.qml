@@ -19,7 +19,7 @@ Item {
 
     // Portrait has a whole half screen for the controls, so they get bigger.
     readonly property real unit: (landscape ? height / 720 : width / 600) * settings.controlsScale
-    readonly property real margin: Theme.paddingLarge
+    readonly property real margin: landscape ? Theme.paddingMedium : Theme.paddingLarge
 
     onKeyboardKeysChanged: emulator.setKeys(keys | keyboardKeys)
 
@@ -138,9 +138,9 @@ Item {
             key: Emulator.KeyA
             width: 118 * controls.unit
             height: width
-            hitMargin: 22 * controls.unit
+            hitMargin: width * 0.22
             x: controls.width - width - controls.margin * (controls.landscape ? 1 : 1.5)
-            y: layer.padCenterY - height * 0.95
+            y: layer.padCenterY - height * 0.85
             pressed: (controls.keys & key) !== 0
         }
 
@@ -151,8 +151,10 @@ Item {
             width: aButton.width
             height: width
             hitMargin: aButton.hitMargin
-            x: aButton.x - width * 1.2
-            y: layer.padCenterY - height * 0.05
+            // Centres 1.25 widths apart: the enlarged hit circles overlap
+            // in the middle, where a thumb presses both.
+            x: aButton.x - width * 1.0
+            y: aButton.y + height * 0.75
             pressed: (controls.keys & key) !== 0
         }
 

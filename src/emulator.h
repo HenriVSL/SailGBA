@@ -27,6 +27,7 @@ public:
     bool take(QImage *out, quint64 *serial) const;
     void publish(const quint32 *pixels, int width, int height, int stride);
     QImage snapshot() const;
+    void clear();
     QSize size() const;
 
 private:
@@ -123,17 +124,20 @@ signals:
     void statesChanged();
 
     // Emitted on the emulation thread, delivered queued to the main thread.
-    void workerStarted(const QString &title, const QString &platform);
-    void workerFailed(const QString &message);
-    void workerFrame();
-    void workerStateSaved(int slot, bool ok);
-    void workerStateLoaded(int slot, bool ok);
+    // Each carries the run's generation so signals still queued from an
+    // earlier game are ignored once another one has started.
+    void workerStarted(int generation, const QString &title, const QString &platform);
+    void workerFailed(int generation, const QString &message);
+    void workerFrame(int generation);
+    void workerStateSaved(int generation, int slot, bool ok);
+    void workerStateLoaded(int generation, int slot, bool ok);
 
 private:
     struct StartOptions {
         QString path;
         QString biosPath;
         bool resume;
+        int generation;
         bool skipBios;
     };
 
@@ -149,9 +153,9 @@ private:
     QString statePath(int slot) const;
 
     // Main-thread side
-    void onStarted(const QString &title, const QString &platform);
-    void onFailed(const QString &message);
-    void onFrame();
+    void onStarted(int generation, const QString &title, const QString &platform);
+    void onFailed(int generation, const QString &message);
+    void onFrame(int generation);
     void applySettings();
 
     Settings *m_settings;
@@ -175,10 +179,13 @@ private:
     std::atomic<bool> m_rumbleState { false };
     RumbleBridge *m_rumbleBridge;
     mCore *m_core = nullptr;
+    int m_runGeneration = 0; // emulation thread's copy
+    int m_framesRun = 0;
     quint32 *m_videoBuffer = nullptr;
     bool m_audioPlaying = false;
 
     // Main thread state mirrored for QML
+    int m_generation = 0;
     bool m_running = false;
     bool m_paused = false;
     bool m_fastForward = false;

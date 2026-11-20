@@ -12,7 +12,9 @@ Page {
                        : settings.orientation === Settings.OrientationLandscape ? Orientation.LandscapeMask
                        : Orientation.All
     // Swiping back by accident would end the game; leave through the menu.
-    backNavigation: false
+    backNavigation: errorMessage.length > 0
+
+    property string errorMessage
     showNavigationIndicator: false
 
     property bool menuOpen: false
@@ -43,13 +45,17 @@ Page {
 
     Connections {
         target: emulator
-        onFailed: {
-            pageStack.replace(Qt.resolvedUrl("ErrorPage.qml"), { message: message })
-        }
+        // Shown in place: the failure usually arrives while this page is
+        // still being pushed, when the page stack refuses to replace it.
+        onFailed: page.errorMessage = message
     }
 
+    // Also covers the strip Silica leaves beside the camera cutout in landscape.
     Rectangle {
-        anchors.fill: parent
+        x: -Screen.topCutout.height
+        y: -Screen.topCutout.height
+        width: parent.width + 2 * Screen.topCutout.height
+        height: parent.height + 2 * Screen.topCutout.height
         color: "black"
     }
 
@@ -100,6 +106,36 @@ Page {
         color: "white"
         style: Text.Outline
         styleColor: "black"
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: page.errorMessage.length > 0
+        color: Theme.overlayBackgroundColor
+
+        MouseArea { anchors.fill: parent } // keep touches away from the gamepad
+
+        Column {
+            anchors.centerIn: parent
+            width: parent.width - 2 * Theme.horizontalPageMargin
+            spacing: Theme.paddingLarge
+
+            InfoLabel {
+                text: qsTr("Could not start the game")
+            }
+            Label {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                color: Theme.secondaryHighlightColor
+                text: page.errorMessage
+            }
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Back to library")
+                onClicked: pageStack.pop()
+            }
+        }
     }
 
     // Hardware keyboard: arrows, Z/X = B/A, A/S = L/R, Enter = Start, Backspace/Shift = Select.
