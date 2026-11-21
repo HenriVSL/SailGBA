@@ -1,8 +1,23 @@
-# SailGBA
+# SailGBA: mGBA Game Boy Advance emulator for Sailfish OS
 
-A native Sailfish OS port of the [mGBA](https://mgba.io) emulator: plays Game Boy
-Advance, Game Boy and Game Boy Color games with a Silica interface and on-screen
-touch controls.
+[![Build](https://github.com/HenriVSL/SailGBA/actions/workflows/build.yml/badge.svg)](https://github.com/HenriVSL/SailGBA/actions/workflows/build.yml)
+[![Latest release](https://img.shields.io/github/v/release/HenriVSL/SailGBA)](https://github.com/HenriVSL/SailGBA/releases/latest)
+
+SailGBA is a native **Sailfish OS** port of the [mGBA](https://mgba.io) emulator.
+It plays **Game Boy Advance**, **Game Boy** and **Game Boy Color** games on Sailfish OS
+phones such as the Jolla C2, Jolla Phone and Sony Xperia 10 series. It uses the
+real mGBA core with a native Silica interface and on-screen multi-touch controls,
+so it looks and works like any other Sailfish app. It does not run through Android
+App Support.
+
+<p>
+  <img src="docs/screenshots/library.png" width="240" alt="SailGBA game library on Sailfish OS">
+  <img src="docs/screenshots/game.png" width="240" alt="Playing a GBA game with the touch controls">
+  <img src="docs/screenshots/save-states.png" width="240" alt="Pause menu with six save state slots">
+</p>
+<p>
+  <img src="docs/screenshots/landscape.png" width="728" alt="Landscape layout with the touch gamepad around the game">
+</p>
 
 ## Features
 
@@ -26,8 +41,11 @@ touch controls.
 - Rumble cartridges vibrate the phone. Hardware keyboards work too
   (arrows, X = A, Z = B, A/S = L/R, Enter = Start, Backspace = Select, Esc = menu).
 - English and Finnish.
+- Full speed (60 fps) on a Jolla C2 using about a third of one CPU core.
 
-No games or BIOS files are included.
+**No games or BIOS files are included.** Use your own cartridge dumps or free
+homebrew games, for example from [itch.io](https://itch.io/games/tag-gameboy-advance)
+or [gbadev](https://gbadev.net/).
 
 ### Known limitations
 
@@ -37,17 +55,45 @@ No games or BIOS files are included.
 - `.zip`/`.7z` archives are not opened (mGBA's archive support needs extra libraries).
 - No link cable, cheats UI, rewind or tilt sensor yet.
 
-## Building
+## Install
 
-Built with the Sailfish SDK (target `SailfishOS-5.1.0.11`), runs on SFOS 5.1+:
+Download the RPM for your device from
+[the latest release](https://github.com/HenriVSL/SailGBA/releases/latest):
+
+| RPM | For |
+|---|---|
+| `harbour-sailgba-<version>-1.aarch64.rpm` | 64-bit ARM phones: Jolla C2, Xperia 10 II and newer |
+| `harbour-sailgba-<version>-1.armv7hl.rpm` | 32-bit ARM devices and 32-bit Sailfish OS installs |
+| `harbour-sailgba-<version>-1.i486.rpm` | The Sailfish SDK emulator |
+
+Not sure? Run `uname -m` in the Terminal: `aarch64`, `armv7l` (armv7hl) or `i686` (i486).
+Requires Sailfish OS 5.1 or later.
+
+Then either allow **Settings ▸ Untrusted software** and open the downloaded RPM, or, in
+developer mode, run:
 
 ```sh
-sfdev build phone      # aarch64 -> build-aarch64/RPMS/
-sfdev build emu        # i486    -> build-i486/RPMS/
-sfdev run emu -- tools/deploy.sh    # build, install and start on a device
+devel-su pkcon install-local ~/Downloads/harbour-sailgba-*.aarch64.rpm
 ```
 
-Or plain sfdk: `sfdk -c target=SailfishOS-5.1.0.11-aarch64 build`.
+Put your games in Documents, Downloads or on a memory card and they show up in the
+library. See [docs/RELEASING.md](docs/RELEASING.md#installing-a-release-rpm) for details.
+
+## Build from source
+
+You need the [Sailfish SDK](https://docs.sailfishos.org/Tools/Sailfish_SDK/) with the
+5.1.0.11 build targets, or just docker.
+
+```sh
+git clone https://github.com/HenriVSL/SailGBA.git
+cd SailGBA
+mkdir -p build-aarch64 && cd build-aarch64
+sfdk -c target=SailfishOS-5.1.0.11-aarch64 build ..
+```
+
+Or with docker only: `.github/scripts/build-rpm.sh aarch64` (also `armv7hl`, `i486`).
+See [docs/BUILDING.md](docs/BUILDING.md) for more, including the maintainer's
+`sfdev` workflow.
 
 ## Layout
 
@@ -62,6 +108,7 @@ Or plain sfdk: `sfdk -c target=SailfishOS-5.1.0.11-aarch64 build`.
 | `3rdparty/mgba/` | Unmodified mGBA 0.10.5 sources (only the parts needed). |
 | `3rdparty/mgba.pri` | Builds the core with qmake; mirrors mGBA's CMake source list. |
 | `tools/` | Device scripts: deploy, multi-touch injection (`sfinput`), unlock. |
+| `.github/` | CI: builds the RPMs and publishes releases (see [docs/RELEASING.md](docs/RELEASING.md)). |
 
 Data lives in `~/.local/share/io.github.henrivsl/harbour-sailgba/`
 (`saves/`, `states/`, `thumbs/`, `bios/`, `settings.ini`).
@@ -72,11 +119,14 @@ Replace `3rdparty/mgba` with the new release's `include/`, `src/` (core, gba, gb
 arm, sm83, util, feature, platform/posix, third-party/inih, third-party/blip_buf),
 `LICENSE`, `README.md` and `CHANGES`, then compare the source list in
 `3rdparty/mgba.pri` against a CMake `LIBMGBA_ONLY` build with the optional
-dependencies switched off, and bump `3rdparty/mgba-gen/version.c`.
+dependencies switched off, and bump `3rdparty/mgba-gen/version.c` and the versions
+in `THIRD_PARTY_NOTICES.md`.
 
 ## License
 
 SailGBA is licensed under the Mozilla Public License 2.0, the same as mGBA.
-mGBA is © Vicki Pfau and contributors; see `3rdparty/mgba/LICENSE`.
-Game Boy and Game Boy Advance are trademarks of Nintendo; this project is not
-affiliated with Nintendo.
+mGBA is © Vicki Pfau and contributors; see `3rdparty/mgba/LICENSE`. Other bundled
+code (inih, blip_buf) is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Game Boy and Game Boy Advance are trademarks of Nintendo. SailGBA is not affiliated
+with or endorsed by Nintendo or the mGBA project.

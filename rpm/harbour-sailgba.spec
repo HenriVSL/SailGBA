@@ -33,6 +33,19 @@ game library.
 %install
 %qmake5_install
 
+# The SDK's %%qmake5 sets QMAKE_STRIP=: and the SDK skips rpm's own stripping,
+# so the binary would ship with symbols (rpmlint: unstripped-binary-or-object).
+# For a debuggable build: sfdev build emu -- --define "sailgba_keep_symbols 1"
+%if 0%{!?sailgba_keep_symbols:1}
+%{__strip} %{buildroot}%{_bindir}/%{name}
+%endif
+
+# License texts next to the app (inih's BSD license and blip_buf's LGPL ask
+# for them in binary distributions). %%{_sourcedir} is <source tree>/rpm in
+# both in-tree and shadow builds.
+install -m 644 %{_sourcedir}/../LICENSE %{_sourcedir}/../THIRD_PARTY_NOTICES.md \
+    %{buildroot}%{_datadir}/%{name}/
+
 desktop-file-install --delete-original         --dir %{buildroot}%{_datadir}/applications                %{buildroot}%{_datadir}/applications/*.desktop
 
 %files
